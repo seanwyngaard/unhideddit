@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Unhideddit",
+  "version": "1.0.0",
+  "description": "Reveals a Reddit user's public posts and comments — even ones hidden from their profile — via Reddit's search index. Instant, no waiting.",
+  "permissions": ["storage", "downloads", "alarms", "notifications"],
+  "host_permissions": [
+    "https://*.reddit.com/*",
+    "https://api.pullpush.io/*",
+    "https://arctic-shift.photon-reddit.com/*"
+  ],
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.reddit.com/user/*", "https://*.reddit.com/u/*"],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Unhideddit",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
