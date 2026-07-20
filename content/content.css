@@ -80,12 +80,19 @@
 }
 .uh-watch {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 26px;
+  box-sizing: border-box;
   background: #26262f;
   border: 1px solid #34343f;
   color: #cfcfda;
   border-radius: 14px;
-  padding: 4px 10px;
+  padding: 0 12px;
   font-size: 12px;
+  line-height: 1;
   cursor: pointer;
   white-space: nowrap;
 }
