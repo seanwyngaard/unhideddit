@@ -43,6 +43,10 @@ Unhideddit fetches a user's public activity live from Reddit's public endpoints 
 - Requests go only to Reddit and public archive services.
 - Snapshots and watch-list saves are written to your own `Downloads` folder.
 
+## Disclaimer
+
+Unhideddit is an independent, unofficial project and is **not affiliated with, endorsed by, sponsored by, or connected to Reddit, Inc. in any way**. "Reddit" and all related names, logos, and trademarks are the property of Reddit, Inc. Unhideddit only accesses content that is already publicly available and is provided as-is for personal use.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
