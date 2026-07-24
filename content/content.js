@@ -441,7 +441,7 @@
           <button data-tab="posts" class="uh-active">Posts</button>
           <button data-tab="comments">Comments</button>
         </div>
-        <button class="uh-snapshot" title="Save all posts, comments & media to your Downloads folder">📸 Snapshot</button>
+        <button class="uh-snapshot" title="Save all posts, comments & media to the folder selected in Unhideddit Settings">📸 Snapshot</button>
       </div>
       <div class="uh-controls uh-controls-2">
         <select class="uh-sort">
@@ -826,7 +826,7 @@
     btn.disabled = false;
     btn.textContent = "📸 Snapshot";
     if (resp?.ok) {
-      status.textContent = `Saved ${postsOut.length} posts, ${commentsOut.length} comments, ${resp.mediaOk} media files → Downloads/Unhideddit/${state.username}/`;
+      status.textContent = `Saved ${postsOut.length} posts, ${commentsOut.length} comments, ${resp.mediaOk} media files → ${resp.destination}`;
     } else {
       status.textContent = "Snapshot failed: " + (resp?.error || "unknown");
     }
@@ -885,6 +885,7 @@
     const btn = panel.querySelector(".uh-watch");
     const resp = await send({ type: "UNHIDE_WATCH_GET" });
     const list = resp?.ok ? resp.watchlist || [] : [];
+    const folder = resp?.ok ? resp.downloadFolder || "Unhideddit" : "Unhideddit";
     const watched = list.some((u) => u.toLowerCase() === state.username.toLowerCase());
     btn.disabled = true;
     await send({
@@ -894,7 +895,7 @@
     btn.disabled = false;
     refreshWatchButton();
     const status = panel.querySelector(".uh-status");
-    if (!watched) status.textContent = `Now watching u/${state.username} — new posts will auto-save to Downloads/Unhideddit/${state.username}/watch/`;
+    if (!watched) status.textContent = `Now watching u/${state.username} — new posts will auto-save to Downloads/${folder}/${state.username}/watch/`;
   }
 
   // ---------- SPA navigation ----------

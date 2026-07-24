@@ -5,7 +5,10 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <h1>🕵️ Unhideddit</h1>
+    <header class="topbar">
+      <h1>🕵️ Unhideddit</h1>
+      <button id="open-settings" class="icon-button" type="button" title="Open settings" aria-label="Open settings">⚙</button>
+    </header>
     <p>Open any Reddit profile and click the 🕵️ button to see their public posts and comments — instantly.</p>
 
     <form id="lookup">
@@ -15,8 +18,11 @@
 
     <hr />
 
-    <h2>👁 Watch list</h2>
-    <p class="hint">Auto-saves new posts &amp; comments (with media) to <code>Downloads/Unhideddit/&lt;user&gt;/watch/</code> while Chrome is running.</p>
+    <div class="section-title">
+      <h2>👁 Following</h2>
+      <span id="watch-count">0</span>
+    </div>
+    <p class="hint">New posts, comments, and media save automatically to <code id="download-path">Downloads/Unhideddit/…</code>.</p>
 
     <form id="watch-add">
       <input id="watch-username" type="text" placeholder="username to watch" autocomplete="off" />
@@ -36,6 +42,8 @@
     </label>
 
     <ul id="watch-list"></ul>
+
+    <button id="manage-settings" class="settings-button" type="button">Manage folder &amp; following</button>
+    <script src="popup.js"></script>
   </body>
-  <script src="popup.js"></script>
 </html>

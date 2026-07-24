@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Unhideddit Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <header class="page-header">
+        <div class="brand-mark" aria-hidden="true">🕵️</div>
+        <div>
+          <p class="eyebrow">Unhideddit</p>
+          <h1>Settings</h1>
+          <p class="intro">Choose where new activity is saved and manage the accounts you follow.</p>
+        </div>
+      </header>
+
+      <section class="panel" aria-labelledby="saving-title">
+        <div class="section-heading">
+          <div class="section-icon folder-icon" aria-hidden="true">↓</div>
+          <div>
+            <h2 id="saving-title">Automatic saving</h2>
+            <p>New posts, comments, and media are filed here without opening a Save As window.</p>
+          </div>
+        </div>
+
+        <form id="settings-form">
+          <label for="download-folder">Folder inside Downloads</label>
+          <div class="path-field">
+            <span>Downloads /</span>
+            <input
+              id="download-folder"
+              name="downloadFolder"
+              type="text"
+              placeholder="Unhideddit"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <p class="field-help">
+            Nested folders are supported, for example <code>Reddit backups/Unhideddit</code>.
+            Browsers only allow extensions to save inside the default Downloads folder.
+          </p>
+
+          <div class="settings-row">
+            <div>
+              <label for="interval">Check followed accounts</label>
+              <p class="field-help compact">The browser must be running for automatic checks.</p>
+            </div>
+            <select id="interval" name="interval">
+              <option value="1">Every minute</option>
+              <option value="3">Every 3 minutes</option>
+              <option value="5">Every 5 minutes</option>
+              <option value="10">Every 10 minutes</option>
+              <option value="15">Every 15 minutes</option>
+              <option value="30">Every 30 minutes</option>
+            </select>
+          </div>
+
+          <div class="form-actions">
+            <button class="primary" type="submit">Save settings</button>
+            <span id="settings-status" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="following-title">
+        <div class="following-heading">
+          <div class="section-heading">
+            <div class="section-icon following-icon" aria-hidden="true">👁</div>
+            <div>
+              <h2 id="following-title">Following</h2>
+              <p>Accounts whose new public activity will be saved automatically.</p>
+            </div>
+          </div>
+          <span id="following-count" class="count">0 accounts</span>
+        </div>
+
+        <form id="watch-add" class="add-form">
+          <div class="username-field">
+            <span>u/</span>
+            <input
+              id="watch-username"
+              type="text"
+              placeholder="username"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Reddit username"
+            />
+          </div>
+          <button class="secondary" type="submit">Follow account</button>
+        </form>
+        <p id="watch-status" class="watch-status" role="status" aria-live="polite"></p>
+
+        <div id="following-list" class="following-list"></div>
+      </section>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -121,7 +121,47 @@ async function fetchAbout(username) {
   return data?.data || null;
 }
 
-// ---------- snapshot to disk ----------
+// ---------- saving to disk ----------
+
+const DEFAULT_DOWNLOAD_FOLDER = "Unhideddit";
+
+const store = {
+  get: (defaults) => new Promise((r) => chrome.storage.local.get(defaults, r)),
+  set: (obj) => new Promise((r) => chrome.storage.local.set(obj, r)),
+};
+
+// chrome.downloads only accepts paths relative to the browser's Downloads
+// directory. Keep nested folders useful while rejecting absolute/backtracking
+// paths and characters that are invalid on common desktop filesystems.
+function normalizeDownloadFolder(value) {
+  const input = String(value ?? "").trim().replace(/\\/g, "/");
+  if (!input) return DEFAULT_DOWNLOAD_FOLDER;
+  if (input.startsWith("/") || /^[a-z]:\//i.test(input)) throw new Error("INVALID_DOWNLOAD_FOLDER");
+
+  const parts = input.split("/").filter(Boolean);
+  if (
+    !parts.length ||
+    parts.some(
+      (part) =>
+        part === "." ||
+        part === ".." ||
+        /[<>:"|?*\u0000-\u001f]/.test(part) ||
+        /[. ]$/.test(part)
+    )
+  ) {
+    throw new Error("INVALID_DOWNLOAD_FOLDER");
+  }
+  return parts.join("/");
+}
+
+async function getDownloadFolder() {
+  const { downloadFolder } = await store.get({ downloadFolder: DEFAULT_DOWNLOAD_FOLDER });
+  try {
+    return normalizeDownloadFolder(downloadFolder);
+  } catch {
+    return DEFAULT_DOWNLOAD_FOLDER;
+  }
+}
 
 // Service workers have no DOM/URL.createObjectURL, so text files are saved as
 // base64 data: URLs; media is handed to Chrome's downloader by URL (no CORS).
@@ -137,7 +177,10 @@ function download(url, filename) {
     try {
       chrome.downloads.download(
         { url, filename, saveAs: false, conflictAction: "overwrite" },
-        (id) => resolve(Boolean(id) && !chrome.runtime.lastError)
+        (id) => {
+          const error = chrome.runtime.lastError;
+          resolve(Boolean(id) && !error);
+        }
       );
     } catch {
       resolve(false);
@@ -147,28 +190,27 @@ function download(url, filename) {
 
 async function snapshot({ username, postsJson, commentsJson, indexHtml, media }) {
   const safe = (username || "user").replace(/[^\w.-]/g, "_");
-  const base = `Unhideddit/${safe}/`;
-  await download(dataUrl("application/json", postsJson), base + "posts.json");
-  await download(dataUrl("application/json", commentsJson), base + "comments.json");
-  await download(dataUrl("text/html;charset=utf-8", indexHtml), base + "index.html");
+  const folder = await getDownloadFolder();
+  const base = `${folder}/${safe}/`;
+  const coreFiles = await Promise.all([
+    download(dataUrl("application/json", postsJson), base + "posts.json"),
+    download(dataUrl("application/json", commentsJson), base + "comments.json"),
+    download(dataUrl("text/html;charset=utf-8", indexHtml), base + "index.html"),
+  ]);
+  if (coreFiles.some((ok) => !ok)) throw new Error("SAVE_FAILED");
   let mediaOk = 0;
   let mediaFail = 0;
   for (const m of media || []) {
     if (await download(m.url, base + m.filename)) mediaOk++;
     else mediaFail++;
   }
-  return { mediaOk, mediaFail };
+  return { mediaOk, mediaFail, destination: `Downloads/${base}` };
 }
 
 // ---------- watch list (background poller) ----------
 
 const POLL_ALARM = "unhideddit-poll";
 const DEFAULT_INTERVAL = 1; // minutes — Chrome's floor for background alarms
-
-const store = {
-  get: (defaults) => new Promise((r) => chrome.storage.local.get(defaults, r)),
-  set: (obj) => new Promise((r) => chrome.storage.local.set(obj, r)),
-};
 
 const seenKey = (user) => `seen_${user.toLowerCase()}`;
 const safeName = (user) => (user || "user").replace(/[^\w.-]/g, "_");
@@ -240,21 +282,37 @@ async function removeWatch(user) {
 async function pollUser(user) {
   const s = await store.get({ [seenKey(user)]: [] });
   const seen = new Set(s[seenKey(user)] || []);
-  const base = `Unhideddit/${safeName(user)}/watch/`;
+  const folder = await getDownloadFolder();
+  const base = `${folder}/${safeName(user)}/watch/`;
   const { posts, comments } = await collectLatest(user);
   let saved = 0;
+  let failed = 0;
 
   for (const p of posts) {
     if (seen.has(p.name)) continue;
+    const ok = await download(
+      dataUrl("application/json", JSON.stringify(p, null, 2)),
+      `${base}posts/${p.id}.json`
+    );
+    if (!ok) {
+      failed++;
+      continue;
+    }
     seen.add(p.name);
-    await download(dataUrl("application/json", JSON.stringify(p, null, 2)), `${base}posts/${p.id}.json`);
     for (const m of watchMedia(p)) await download(m.url, `${base}media/${m.filename}`);
     saved++;
   }
   for (const c of comments) {
     if (seen.has(c.name)) continue;
+    const ok = await download(
+      dataUrl("application/json", JSON.stringify(c, null, 2)),
+      `${base}comments/${c.id}.json`
+    );
+    if (!ok) {
+      failed++;
+      continue;
+    }
     seen.add(c.name);
-    await download(dataUrl("application/json", JSON.stringify(c, null, 2)), `${base}comments/${c.id}.json`);
     saved++;
   }
 
@@ -270,7 +328,7 @@ async function pollUser(user) {
       });
     } catch {}
   }
-  return saved;
+  return { saved, failed };
 }
 
 async function pollAll() {
@@ -302,7 +360,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg?.type === "UNHIDE_WATCH_GET") {
-    store.get({ watchlist: [], interval: DEFAULT_INTERVAL }).then((s) => sendResponse({ ok: true, ...s }));
+    Promise.all([
+      store.get({ watchlist: [], interval: DEFAULT_INTERVAL }),
+      getDownloadFolder(),
+    ]).then(([s, downloadFolder]) => sendResponse({ ok: true, ...s, downloadFolder }));
     return true;
   }
   if (msg?.type === "UNHIDE_WATCH_INTERVAL") {
@@ -310,6 +371,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .set({ interval: Math.max(1, Number(msg.interval) || DEFAULT_INTERVAL) })
       .then(ensureAlarm)
       .then(() => sendResponse({ ok: true }));
+    return true;
+  }
+  if (msg?.type === "UNHIDE_SETTINGS_SET") {
+    let downloadFolder;
+    try {
+      downloadFolder = normalizeDownloadFolder(msg.downloadFolder);
+    } catch (err) {
+      sendResponse({ ok: false, error: err.message });
+      return false;
+    }
+    const interval = Math.max(1, Number(msg.interval) || DEFAULT_INTERVAL);
+    store
+      .set({ downloadFolder, interval })
+      .then(ensureAlarm)
+      .then(() => sendResponse({ ok: true, downloadFolder, interval }))
+      .catch((err) => sendResponse({ ok: false, error: err.message || "UNKNOWN" }));
     return true;
   }
   if (msg?.type === "UNHIDE_SNAPSHOT") {

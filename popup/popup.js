@@ -1,6 +1,13 @@
 const send = (msg) => new Promise((r) => chrome.runtime.sendMessage(msg, r));
 const clean = (v) => v.trim().replace(/^\/?u(?:ser)?\//i, "").replace(/^\/+|\/+$/g, "");
 
+function openSettings() {
+  chrome.runtime.openOptionsPage();
+}
+
+document.getElementById("open-settings").addEventListener("click", openSettings);
+document.getElementById("manage-settings").addEventListener("click", openSettings);
+
 document.getElementById("lookup").addEventListener("submit", (e) => {
   e.preventDefault();
   const name = clean(document.getElementById("username").value);
@@ -9,23 +16,41 @@ document.getElementById("lookup").addEventListener("submit", (e) => {
 
 function renderList(watchlist) {
   const ul = document.getElementById("watch-list");
+  document.getElementById("watch-count").textContent = String(watchlist.length);
   ul.innerHTML = "";
   if (!watchlist.length) {
-    ul.innerHTML = `<li class="empty">No one watched yet.</li>`;
+    ul.innerHTML = `<li class="empty">No accounts followed yet.</li>`;
     return;
   }
   for (const user of watchlist) {
     const li = document.createElement("li");
-    const span = document.createElement("span");
-    span.textContent = `u/${user}`;
+
+    const avatar = document.createElement("span");
+    avatar.className = "watch-avatar";
+    avatar.textContent = user.slice(0, 2);
+    avatar.setAttribute("aria-hidden", "true");
+
+    const copy = document.createElement("span");
+    copy.className = "watch-copy";
+    const link = document.createElement("a");
+    link.href = `https://www.reddit.com/user/${encodeURIComponent(user)}/`;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = `u/${user}`;
+    const status = document.createElement("small");
+    status.textContent = "Auto-saving new activity";
+    copy.append(link, status);
+
     const btn = document.createElement("button");
-    btn.textContent = "✕";
-    btn.title = "Stop watching";
+    btn.className = "remove-watch";
+    btn.textContent = "×";
+    btn.title = `Stop following u/${user}`;
+    btn.setAttribute("aria-label", `Stop following u/${user}`);
     btn.addEventListener("click", async () => {
       const resp = await send({ type: "UNHIDE_WATCH_REMOVE", username: user });
       if (resp?.ok) renderList(resp.watchlist);
     });
-    li.append(span, btn);
+    li.append(avatar, copy, btn);
     ul.append(li);
   }
 }
@@ -55,6 +80,8 @@ document.getElementById("interval").addEventListener("change", (e) => {
   const s = await send({ type: "UNHIDE_WATCH_GET" });
   if (s?.ok) {
     document.getElementById("interval").value = String(s.interval || 1);
+    document.getElementById("download-path").textContent =
+      `Downloads/${s.downloadFolder || "Unhideddit"}/…`;
     renderList(s.watchlist || []);
   }
 })();
