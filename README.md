@@ -32,8 +32,9 @@ Works on any **Chromium-based browser** — **Google Chrome, Microsoft Edge, Bra
 - **View a profile:** open any `reddit.com/user/<name>` page and click the floating 🕵️ button (bottom-right) to open the panel. Switch between **Posts** and **Comments**, sort, filter, and toggle an NSFW filter. Click **⛶** for a full-page view.
 
 > **NSFW / 18+ content:** to see mature posts and comments, stay **logged into Reddit in the same browser with "Show mature content (18+)" enabled** in your Reddit settings. Logged out, Reddit hides most NSFW content from its live results (some may still surface from public archives).
-- **Back up a profile:** click **📸 Snapshot** to save all of a user's posts, comments, and media to `Downloads/Unhideddit/<user>/`, plus a browsable `index.html`.
-- **Watch accounts:** click **👁 Watch** on a profile (or add usernames from the toolbar popup). While your browser is open, Unhideddit checks watched accounts on a set interval and auto-saves any **new** posts/comments and media to `Downloads/Unhideddit/<user>/watch/`. Manage the watch list from the popup or the panel.
+- **Choose the save folder:** open **⚙ Settings** from the toolbar popup and choose a folder under your browser's Downloads directory. Nested paths such as `Reddit backups/Unhideddit` are supported. Chromium's extension download API does not allow absolute paths outside Downloads.
+- **Back up a profile:** click **📸 Snapshot** to save all of a user's posts, comments, and media to `Downloads/<your folder>/<user>/`, plus a browsable `index.html`.
+- **Follow accounts:** click **👁 Watch** on a profile (or add usernames from the toolbar popup or Settings). While your browser is open, Unhideddit checks followed accounts on a set interval and silently auto-saves any **new** posts/comments and media to `Downloads/<your folder>/<user>/watch/`. Settings includes a visual list for viewing and managing everyone you follow.
 
 ## How it works (short version)
 
@@ -43,7 +44,7 @@ Unhideddit fetches a user's public activity live from Reddit's public endpoints 
 
 - No account, no login to the extension, no analytics, no external server.
 - Requests go only to Reddit and public archive services.
-- Snapshots and watch-list saves are written to your own `Downloads` folder.
+- Snapshots and followed-account saves are written to the folder you choose under your own `Downloads` directory.
 
 ## Disclaimer
 

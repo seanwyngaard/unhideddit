@@ -1,18 +1,39 @@
 body {
-  width: 300px;
+  width: 330px;
   margin: 0;
-  padding: 14px 16px;
+  padding: 15px 16px 16px;
   background: #1a1a1f;
   color: #e8e8ee;
   font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
+.topbar,
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.topbar {
+  margin-bottom: 8px;
+}
 h1 {
   font-size: 16px;
-  margin: 0 0 8px;
+  margin: 0;
 }
 h2 {
   font-size: 14px;
-  margin: 0 0 6px;
+  margin: 0;
+}
+.section-title {
+  margin-bottom: 6px;
+}
+#watch-count {
+  min-width: 22px;
+  padding: 1px 7px;
+  border: 1px solid #34343f;
+  border-radius: 999px;
+  color: #aaa8b8;
+  font-size: 11px;
+  text-align: center;
 }
 p {
   margin: 0 0 10px;
@@ -23,6 +44,7 @@ p.hint {
   color: #9a9aac;
 }
 code {
+  overflow-wrap: anywhere;
   background: #26262f;
   padding: 1px 5px;
   border-radius: 4px;
@@ -55,6 +77,22 @@ button {
   cursor: pointer;
   font-weight: 600;
 }
+.icon-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #34343f;
+  border-radius: 9px;
+  background: #25252d;
+  color: #bcbaca;
+  font-size: 15px;
+}
+.icon-button:hover {
+  border-color: #5a536f;
+  color: #fff;
+}
 button:disabled {
   opacity: 0.6;
 }
@@ -79,8 +117,8 @@ button:disabled {
 #watch-list li {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
+  gap: 9px;
+  padding: 8px 9px;
   background: #232330;
   border: 1px solid #2e2e3a;
   border-radius: 8px;
@@ -92,12 +130,63 @@ button:disabled {
   border: none;
   padding: 4px 0;
 }
-#watch-list button {
+.watch-avatar {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: #403864;
+  color: #dedaff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.watch-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  line-height: 1.35;
+}
+.watch-copy a {
+  overflow: hidden;
+  color: #efedf8;
+  font-weight: 650;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.watch-copy a:hover {
+  color: #bcb3ff;
+}
+.watch-copy small {
+  color: #858396;
+  font-size: 10px;
+}
+#watch-list button.remove-watch {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
   background: none;
   color: #b8b8c8;
-  padding: 2px 6px;
-  font-size: 14px;
+  padding: 0;
+  font-size: 18px;
 }
-#watch-list button:hover {
+#watch-list button.remove-watch:hover {
+  background: rgba(232, 72, 79, 0.1);
   color: #e8484f;
+}
+.settings-button {
+  width: 100%;
+  margin-top: 5px;
+  border: 1px solid #3d394f;
+  background: #282631;
+  color: #c9c5df;
+  font-size: 12px;
+}
+.settings-button:hover {
+  border-color: #675e8d;
+  color: #fff;
 }
