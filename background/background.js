@@ -172,18 +172,58 @@ function dataUrl(mime, text) {
   return `data:${mime};base64,${btoa(bin)}`;
 }
 
+// Resolve only when Chrome reports that the transfer actually finished. The
+// callback from downloads.download means "started", not "saved"; treating it
+// as success makes interrupted media downloads disappear from the retry path.
 function download(url, filename) {
   return new Promise((resolve) => {
+    let downloadId = null;
+    let settled = false;
+    let timer = null;
+
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      chrome.downloads.onChanged.removeListener(onChanged);
+      resolve(ok);
+    };
+
+    const onChanged = (delta) => {
+      if (downloadId === null || delta.id !== downloadId || !delta.state) return;
+      if (delta.state.current === "complete") finish(true);
+      else if (delta.state.current === "interrupted") finish(false);
+    };
+
     try {
+      chrome.downloads.onChanged.addListener(onChanged);
       chrome.downloads.download(
         { url, filename, saveAs: false, conflictAction: "overwrite" },
         (id) => {
           const error = chrome.runtime.lastError;
-          resolve(Boolean(id) && !error);
+          if (!id || error) {
+            finish(false);
+            return;
+          }
+          downloadId = id;
+
+          // Cover very small data URLs that may finish before onChanged is
+          // delivered to this service worker.
+          chrome.downloads.search({ id }, (items) => {
+            const searchError = chrome.runtime.lastError;
+            if (searchError || settled) return;
+            const state = items?.[0]?.state;
+            if (state === "complete") finish(true);
+            else if (state === "interrupted") finish(false);
+          });
+
+          // Avoid retaining a listener forever if the browser never emits a
+          // terminal event (for example, during shutdown).
+          timer = setTimeout(() => finish(false), 5 * 60 * 1000);
         }
       );
     } catch {
-      resolve(false);
+      finish(false);
     }
   });
 }
@@ -222,26 +262,66 @@ function wext(u) {
   const m = String(u).split("?")[0].match(/\.(jpe?g|png|gif|webp|mp4)$/i);
   return m ? m[1].toLowerCase().replace("jpeg", "jpg") : "jpg";
 }
+
+function cleanMediaUrl(url) {
+  return String(url || "").replace(/&amp;/g, "&");
+}
+
+function uniqueMediaUrls(urls) {
+  return urls
+    .map(cleanMediaUrl)
+    .filter((url, index, all) => /^https?:\/\//.test(url) && all.indexOf(url) === index);
+}
+
+function previewCandidates(p) {
+  const image = p.preview?.images?.[0];
+  const resolutions = image?.resolutions;
+  return uniqueMediaUrls([
+    image?.source?.url,
+    resolutions?.length ? resolutions[resolutions.length - 1]?.url : "",
+    /^https?:\/\//.test(p.thumbnail || "") ? p.thumbnail : "",
+  ]);
+}
+
 function watchMedia(p) {
-  const id = p.id;
+  const id = p.id || String(p.name || "").replace(/^t3_/, "") || "post";
   const out = [];
   if (p.is_gallery && p.media_metadata) {
-    let i = 0;
-    for (const k of Object.keys(p.media_metadata)) {
-      const s = p.media_metadata[k]?.s;
-      const u = (s?.u || s?.gif || "").replace(/&amp;/g, "&");
-      if (u) out.push({ url: u, filename: `${id}_${wslug(p.title)}_${i++}.${wext(u)}` });
+    const order = p.gallery_data?.items?.map((item) => item.media_id) || Object.keys(p.media_metadata);
+    for (let i = 0; i < order.length; i++) {
+      const entry = p.media_metadata[order[i]];
+      const resolutions = entry?.p;
+      const urls = uniqueMediaUrls([
+        entry?.s?.u || entry?.s?.gif,
+        resolutions?.length ? resolutions[resolutions.length - 1]?.u : "",
+      ]);
+      if (urls.length) {
+        out.push({ urls, filename: `${id}_${wslug(p.title)}_${i}.${wext(urls[0])}` });
+      }
+    }
+    // Removed or partially processed galleries sometimes retain only the
+    // listing preview/thumbnail even though media_metadata is empty.
+    if (!out.length) {
+      const urls = previewCandidates(p);
+      if (urls.length) out.push({ urls, filename: `${id}_${wslug(p.title)}_0.${wext(urls[0])}` });
     }
   } else {
-    const url = p.url_overridden_by_dest || p.url || "";
-    const clean = url.split("?")[0];
-    const isImg =
+    const direct = cleanMediaUrl(p.url_overridden_by_dest || p.url || "");
+    const isDirectImage =
       p.post_hint === "image" ||
-      /\.(jpe?g|png|gif|webp)$/i.test(clean) ||
-      /(i\.redd\.it|i\.imgur\.com)/.test(url);
-    if (isImg && url) out.push({ url, filename: `${id}_${wslug(p.title)}.${wext(url)}` });
+      /\.(jpe?g|png|gif|webp)$/i.test(direct.split("?")[0]) ||
+      /(i\.redd\.it|i\.imgur\.com)/.test(direct);
+    const urls = uniqueMediaUrls([isDirectImage ? direct : "", ...previewCandidates(p)]);
+    if (urls.length) out.push({ urls, filename: `${id}_${wslug(p.title)}.${wext(urls[0])}` });
   }
   return out;
+}
+
+async function downloadWatchMedia(media, filename) {
+  for (const url of media.urls || []) {
+    if (await download(url, filename)) return true;
+  }
+  return false;
 }
 
 async function ensureAlarm() {
@@ -298,8 +378,18 @@ async function pollUser(user) {
       failed++;
       continue;
     }
+    const media = watchMedia(p);
+    // An image/gallery post with no usable URL is not complete. Leave it out
+    // of seen so a later listing (after Reddit finishes processing it) retries.
+    let mediaOk = media.length > 0 || !(p.is_gallery || p.post_hint === "image");
+    for (const m of media) {
+      if (!(await downloadWatchMedia(m, `${base}media/${m.filename}`))) mediaOk = false;
+    }
+    if (!mediaOk) {
+      failed++;
+      continue;
+    }
     seen.add(p.name);
-    for (const m of watchMedia(p)) await download(m.url, `${base}media/${m.filename}`);
     saved++;
   }
   for (const c of comments) {
@@ -320,9 +410,9 @@ async function pollUser(user) {
   await store.set({ [seenKey(user)]: [...seen].slice(-8000) });
   if (saved > 0) {
     try {
-      chrome.notifications.create({
+      await chrome.notifications.create({
         type: "basic",
-        iconUrl: "icons/icon128.png",
+        iconUrl: chrome.runtime.getURL("icons/icon128.png"),
         title: "Unhideddit",
         message: `Saved ${saved} new item${saved > 1 ? "s" : ""} from u/${user}`,
       });

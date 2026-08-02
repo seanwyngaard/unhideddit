@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Unhideddit",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Reveals a Reddit user's public posts and comments — even ones hidden from their profile — via Reddit's search index. Instant, no waiting.",
   "permissions": ["storage", "downloads", "alarms", "notifications"],
   "host_permissions": [
